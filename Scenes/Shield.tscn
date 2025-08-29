@@ -1,0 +1,52 @@
+[gd_scene load_steps=5 format=3 uid="uid://vngerbkfw4gs"]
+
+[ext_resource type="Script" uid="uid://cdj4ja4ap3hj4" path="res://Scripts/Shield.cs" id="1_xuq1u"]
+[ext_resource type="Script" uid="uid://ci4js38v30kvf" path="res://Scripts/ParryArea.cs" id="2_g6qfg"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_pkju2"]
+radius = 4.0
+height = 48.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_xuq1u"]
+size = Vector2(54, 14)
+
+[node name="Shield" type="CharacterBody2D"]
+use_parent_material = true
+collision_layer = 3840
+collision_mask = 240
+motion_mode = 1
+script = ExtResource("1_xuq1u")
+
+[node name="ParryFx" type="ColorRect" parent="."]
+visible = false
+offset_left = -27.0
+offset_top = 25.0
+offset_right = 27.0
+offset_bottom = 39.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+use_parent_material = true
+position = Vector2(0, 32)
+rotation = 1.5708
+shape = SubResource("CapsuleShape2D_pkju2")
+
+[node name="ColorRect" type="ColorRect" parent="CollisionShape2D"]
+use_parent_material = true
+offset_left = -4.0
+offset_top = -24.0
+offset_right = 4.0
+offset_bottom = 24.0
+color = Color(0, 1, 1, 1)
+metadata/_edit_use_anchors_ = true
+
+[node name="ParryTrigger" type="Area2D" parent="."]
+position = Vector2(0, 22)
+collision_layer = 15
+collision_mask = 15
+script = ExtResource("2_g6qfg")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ParryTrigger"]
+position = Vector2(0, 10)
+shape = SubResource("RectangleShape2D_xuq1u")
+
+[connection signal="body_entered" from="ParryTrigger" to="." method="_on_parry_trigger_body_entered"]

@@ -1,0 +1,85 @@
+[gd_scene load_steps=6 format=3 uid="uid://l6lgxsgy6gwd"]
+
+[ext_resource type="PackedScene" uid="uid://bfypxribcajkt" path="res://Scenes/Map.tscn" id="1_i7gfh"]
+[ext_resource type="Texture2D" uid="uid://cs7vndt24xcjo" path="res://Assets/black.png" id="2_ynwmm"]
+[ext_resource type="PackedScene" uid="uid://t3b81u3ou4la" path="res://Scenes/MovableBox.tscn" id="3_4x3gm"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ynwmm"]
+size = Vector2(1164, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_4x3gm"]
+size = Vector2(20, 669)
+
+[node name="Map_Empty" type="Node2D"]
+
+[node name="Map" parent="." instance=ExtResource("1_i7gfh")]
+
+[node name="ColorRect" type="ColorRect" parent="Map/Background" index="0"]
+offset_right = 1151.0
+offset_bottom = 647.0
+color = Color(0.178888, 0.180151, 0.21667, 1)
+
+[node name="StaticBody2D" type="StaticBody2D" parent="Map/Walls" index="0"]
+collision_layer = 15
+collision_mask = 15
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Map/Walls/StaticBody2D"]
+position = Vector2(572, 0)
+shape = SubResource("RectangleShape2D_ynwmm")
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="Map/Walls/StaticBody2D"]
+position = Vector2(572, 651)
+shape = SubResource("RectangleShape2D_ynwmm")
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="Map/Walls/StaticBody2D"]
+position = Vector2(0, 324.5)
+shape = SubResource("RectangleShape2D_4x3gm")
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="Map/Walls/StaticBody2D"]
+position = Vector2(1152, 324.5)
+shape = SubResource("RectangleShape2D_4x3gm")
+
+[node name="Sprite2D" type="Sprite2D" parent="Map/Walls/StaticBody2D"]
+position = Vector2(1156.64, 328)
+scale = Vector2(0.025197, 1.21147)
+texture = ExtResource("2_ynwmm")
+
+[node name="Sprite2D2" type="Sprite2D" parent="Map/Walls/StaticBody2D"]
+position = Vector2(-2.99988, 328)
+scale = Vector2(0.025197, 1.21147)
+texture = ExtResource("2_ynwmm")
+
+[node name="Sprite2D3" type="Sprite2D" parent="Map/Walls/StaticBody2D"]
+position = Vector2(572.928, 2)
+scale = Vector2(0.98348, 0.0430108)
+texture = ExtResource("2_ynwmm")
+
+[node name="Sprite2D4" type="Sprite2D" parent="Map/Walls/StaticBody2D"]
+position = Vector2(572.928, 654)
+scale = Vector2(0.98348, 0.0537635)
+texture = ExtResource("2_ynwmm")
+
+[node name="MovableBox" parent="Map/Interactables" index="0" instance=ExtResource("3_4x3gm")]
+position = Vector2(537, 322)
+
+[node name="MovableBox2" parent="Map/Interactables" index="1" instance=ExtResource("3_4x3gm")]
+position = Vector2(539, 376)
+
+[node name="MovableBox3" parent="Map/Interactables" index="2" instance=ExtResource("3_4x3gm")]
+position = Vector2(540, 428)
+
+[node name="S1" type="Marker2D" parent="Map/SpawnPoints" index="0"]
+position = Vector2(158, 125)
+
+[node name="S2" type="Marker2D" parent="Map/SpawnPoints" index="1"]
+position = Vector2(945, 106)
+rotation = 3.14159
+
+[node name="S3" type="Marker2D" parent="Map/SpawnPoints" index="2"]
+position = Vector2(179, 540)
+
+[node name="S4" type="Marker2D" parent="Map/SpawnPoints" index="3"]
+position = Vector2(953, 544)
+rotation = -3.14159
+
+[editable path="Map"]
