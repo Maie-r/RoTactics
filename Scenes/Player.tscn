@@ -1,10 +1,11 @@
-[gd_scene load_steps=8 format=3 uid="uid://lpv20vaeribo"]
+[gd_scene load_steps=11 format=3 uid="uid://lpv20vaeribo"]
 
 [ext_resource type="Shader" uid="uid://brli7h04mohrk" path="res://Scenes/Player.gdshader" id="1_5ixxa"]
 [ext_resource type="Script" uid="uid://cwx6pcbmtr6dx" path="res://Scripts/Player.cs" id="1_gntrk"]
 [ext_resource type="PackedScene" uid="uid://llcp8iyxotbj" path="res://Scenes/Sword.tscn" id="1_rpqav"]
 [ext_resource type="PackedScene" uid="uid://vngerbkfw4gs" path="res://Scenes/Shield.tscn" id="2_kyqiw"]
-[ext_resource type="Texture2D" uid="uid://dl42q35u2ncb6" path="res://icon.svg" id="4_dewec"]
+[ext_resource type="Texture2D" uid="uid://cwgnwdpkcyo38" path="res://Assets/circle.png" id="3_nn08x"]
+[ext_resource type="Texture2D" uid="uid://b2ct6qlddtggp" path="res://Assets/circlehollow.png" id="4_52ee3"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_nn08x"]
 shader = ExtResource("1_5ixxa")
@@ -12,27 +13,51 @@ shader_parameter/Colorize = Color(1, 0.33, 0.33, 1)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_qbkls"]
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_nn08x"]
+size = Vector2(19.5253, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_52ee3"]
+size = Vector2(2.50666, 84.3094)
+
 [node name="Player" type="CharacterBody2D"]
 material = SubResource("ShaderMaterial_nn08x")
-collision_layer = 15
-collision_mask = 4095
+collision_layer = 4
+collision_mask = 11
 motion_mode = 1
 script = ExtResource("1_gntrk")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="Sprite" type="Node2D" parent="."]
+use_parent_material = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Sprite"]
+use_parent_material = true
+scale = Vector2(0.015, 0.015)
+texture = ExtResource("3_nn08x")
+
+[node name="Sprite2D2" type="Sprite2D" parent="Sprite"]
+use_parent_material = true
+scale = Vector2(0.01, 0.01)
+texture = ExtResource("4_52ee3")
+
+[node name="Body" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_qbkls")
 
 [node name="Sword" parent="." instance=ExtResource("1_rpqav")]
-z_index = -2
 rotation = -1.5708
 
 [node name="Shield" parent="." instance=ExtResource("2_kyqiw")]
+position = Vector2(-12, 0)
 rotation = -1.5708
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-use_parent_material = true
-scale = Vector2(0.15625, 0.15625)
-texture = ExtResource("4_dewec")
+[node name="SwordCollision" type="CollisionShape2D" parent="."]
+position = Vector2(-65, 0)
+scale = Vector2(3.98937, 0.524832)
+shape = SubResource("RectangleShape2D_nn08x")
+
+[node name="ShieldCollision" type="CollisionShape2D" parent="."]
+position = Vector2(32, -8.88178e-16)
+scale = Vector2(3.98937, 0.524832)
+shape = SubResource("RectangleShape2D_52ee3")
 
 [node name="DebugDisplay" type="HBoxContainer" parent="."]
 offset_left = -21.0

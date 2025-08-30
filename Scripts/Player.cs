@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 public partial class Player : CharacterBody2D
 {
@@ -14,8 +15,9 @@ public partial class Player : CharacterBody2D
 	public bool DebugDisplay = false;
 	CollisionObject2D box;
 	Label[] DebugDisplays = new Label[4];
-	////////////////
 
+	public bool InvertedLook = false;
+	////////////////
 
 	[Export]
 	public int TeamID;
@@ -28,29 +30,51 @@ public partial class Player : CharacterBody2D
 	[Export]
 	public float Accel = 2000;
 	[Export]
-	public float MaxRotationSpeed = 20;
+	public float MaxRotationSpeed = 20; // 20 is good
 	[Export]
 	public float Friction = 5;
 	[Export]
+
 	public int MaxHealth = 3;
 	[Export]
 	public int CurrentHealth;
-
+	Timer IFrameTimer;
+	public bool Immune = false;
+	Timer FlashingTimer;
+	
 	public Sword Sword;
 	public Shield Shield;
 
-	public float CurrentRotation = 0;
-	public float LastRotationAngle = 0;
+	public List<float> AngularKnockbacks = new List<float>(); // Accel
+	public float TotalAngularKnockback
+	{
+		get {
+			float res = 0;
+			foreach (float angle in AngularKnockbacks)
+				res += angle;
+			return res;
+		 }
+	}
+	public float BaseRotation = 0;
+	public float RotationOffset = 0;
 
 	Timer StunTimer;
 	public bool Stunned = false;
 
 	Timer LungeTimer;
 	bool CanLunge = true;
+	[Export]
+	public float LungeCooldown = 0.4f;
 
 	Timer ParryTimer;
 	bool CanParry = true;
 	Timer ParryWindowTimer;
+	[Export]
+	public float ParryCooldown = 1;
+	public float ParryWindow = 0.2f;
+
+	public float AngularVelocity = 0; // Positive = clockwise
+	float LastRotationAngle;
 
 	public override void _Ready()
 	{
@@ -108,7 +132,7 @@ public partial class Player : CharacterBody2D
 	{
 		if (!Stunned && !DisableMovement)
 		{
-			if (ID >= 3)
+			if (ID >= 3) //controller
 			{
 				var axis = Input.GetVector($"lleft_{ID}", $"lright_{ID}", $"lup_{ID}", $"ldown_{ID}");
 				if (axis.Length() > 0.2f)
@@ -132,15 +156,15 @@ public partial class Player : CharacterBody2D
 			SingleInputs();
 			MoveInputs((float)delta);
 		}
-		else
-		{
-			if (Input.IsActionJustPressed("test"))
-				PushRotation(0.8f);
-			else
-				RotationFriction((float)delta);
-		}
-			
+		//GD.Print(LastRotationAngle);
+		if (Input.IsActionJustPressed("test"))
+			PushRotation(4f);
+		else if (Input.IsActionJustPressed("test2"))
+			TakeDamage();//PushRotation(-4f);
+		RotationFriction((float)delta);
 		SlideFriction((float)delta);
+		AngularVelocity = (GlobalRotation - LastRotationAngle) / (float)delta;
+		LastRotationAngle = GlobalRotation;
 		MoveAndSlide();
 		CheckCollisions((float)delta);
 		if (DebugDisplay)
@@ -174,9 +198,22 @@ public partial class Player : CharacterBody2D
 
 	void RotationFriction(float delta)
 	{
-		if (LastRotationAngle == 0) return;
-		LastRotationAngle *= 0.9f;
-		this.Rotation += LastRotationAngle * 2 * delta;
+		float finalrotation = 0;
+		for (int i = 0; i < AngularKnockbacks.Count; i++)
+		{
+			AngularKnockbacks[i] *= 0.96f; //* (float)delta;
+			finalrotation += AngularKnockbacks[i];
+			if (Mathf.Abs(AngularKnockbacks[i]) < 0.01)
+			{
+				AngularKnockbacks.RemoveAt(i);
+				i--;
+			}
+		}
+		//if (LastRotationAngle == 0) return;
+		//LastRotationAngle *= 0.9f;
+		//GD.Print(finalrotation);
+		RotationOffset = finalrotation/Mathf.Pi;
+		this.Rotation += (finalrotation ) * delta; // + (LastRotationAngle * 20)
 	}
 
 	void SingleInputs()
@@ -198,15 +235,24 @@ public partial class Player : CharacterBody2D
 			var collision = GetSlideCollision(i);
 			if (collision.GetCollider() is RigidBody2D rb)
 			{
-				var push = (Velocity.Length() * delta) + 1;
+				var push = (Velocity.Length() * delta) + 2;
 				rb.ApplyCentralImpulse(-collision.GetNormal() * push);
+				rb.ApplyCentralForce(GetAngularPush(this.Velocity, this.AngularVelocity, this.Rotation));
+			}
+			else if (collision.GetCollider() is CharacterBody2D cb)
+			{
+				var push = (Velocity.Length() * delta) + 1;
+				cb.Velocity += -collision.GetNormal() * push;
 			}
 		}
 	}
 
 	void TryLookAt(Vector2 GoalPosition, float delta)
 	{
-		TryLook((GoalPosition - GlobalPosition).Angle(), delta);
+		if (!InvertedLook)
+			TryLook((GoalPosition - this.GlobalPosition).Angle(), delta);
+		else
+			TryLook((this.GlobalPosition - GoalPosition).Angle(), delta);
 	}
 	void TryLookFrom(Vector2 Axis, float delta)
 	{
@@ -216,37 +262,69 @@ public partial class Player : CharacterBody2D
 	void TryLook(float angle, float delta)
 	{
 		//var variation = Mathf.AngleDifference(angle2, Rotation);
-		var variation = Mathf.AngleDifference(Rotation, angle);//Mathf.Abs(angle2) - Mathf.Abs(this.Rotation);
+		var variation = Mathf.AngleDifference(this.BaseRotation, angle);//Mathf.Abs(angle2) - Mathf.Abs(this.BaseRotation);
 
-		//GD.Print($"{this.Rotation/Mathf.Pi} or {this.Rotation} = {angle} or {angle2}"); // Rotation = angle2
+		//GD.Print($"{this.BaseRotation/Mathf.Pi} or {this.BaseRotation} = {angle} or {angle2}"); // BaseRotation = angle2
 		//GD.Print(Mathf.Abs(variation2));
 		//GD.Print($"{orientation} {orientation2}");
-		if (Mathf.Abs(variation) > 0.5)
+		if (Mathf.Abs(variation) > 0.1) // Too far
 		{
 			var step = MaxRotationSpeed * delta;
 			var rot = Math.Clamp(variation, -step, step);
-			LastRotationAngle = rot;
-			Rotation += rot;
+			//LastRotationAngle = rot;
+			BaseRotation += rot;
 		}
 		else
 		{
-			LastRotationAngle = angle;
-			this.Rotation = angle;
+			//LastRotationAngle = angle;
+			this.BaseRotation = angle;
 		}
-			
-		CurrentRotation = this.Rotation;
+		Rotation = BaseRotation + RotationOffset;
 	}
 }
 
 public partial class Player : CharacterBody2D // EVENTS
 {
+	public void TakeDamage()
+	{
+		if (!Immune)
+		{
+			CurrentHealth -= 1;
+			if (CurrentHealth <= 0)
+				Die();
+			else{
+				Immune = true;
+				IFrameTimer.Start(2);
+				StartFlashing();
+			}
+		}
+		
+	}
+
+	public void Die()
+	{
+		this.QueueFree();
+	}
+
+	public void StartFlashing()
+	{
+		this.Visible = false;
+		FlashingTimer.Start(0.15f);
+	}
+
+	public void StopFlashing()
+	{
+		FlashingTimer.Stop();
+		this.Visible = true;
+	}
 	public void Lunge()
 	{
 		if (CanLunge)
 		{
 			CanLunge = false;
-			LungeTimer.Start(0.2f);
+			LungeTimer.Start(LungeCooldown);
 			Velocity = Transform.X * Accel;
+			TempAudio.PlayRandomPitch("Lunge.mp3", 0.1f, this);
 		}
 	}
 
@@ -255,10 +333,15 @@ public partial class Player : CharacterBody2D // EVENTS
 		if (CanParry)
 		{
 			Shield.ParryActive();
-			ParryWindowTimer.Start(0.2f);
+			ParryWindowTimer.Start(ParryWindow);
 			CanParry = false;
-			ParryTimer.Start(1);
+			ParryTimer.Start(ParryCooldown);
 		}
+	}
+
+	public void ParryOver()
+	{
+		Shield.ParryOver();
 	}
 
 	public void Stun(float Duration)
@@ -274,9 +357,9 @@ public partial class Player : CharacterBody2D // EVENTS
 
 	public void PushRotation(float Rotation)
 	{
-		CurrentRotation = Rotation;
-		Rotation += Rotation;
-		LastRotationAngle = Rotation;
+		AngularKnockbacks.Add(Rotation);
+		//this.Rotation += Rotation;
+		//LastRotationAngle = Rotation;
 	}
 
 	void UpdateDebugMenu()
@@ -286,27 +369,36 @@ public partial class Player : CharacterBody2D // EVENTS
 		DebugDisplays[2].Text = "Angle: " + this.Rotation.ToString("N2");
 		DebugDisplays[3].Text = Stunned ? "Stunned" : "";
 	}
+
+	static Vector2 GetAngularPush(Vector2 velocity, float angularVelocity, float FacingAngleDegrees)
+	{
+		Vector2 res = new Vector2(velocity.X, velocity.Y);
+		var facingSin = Mathf.Sin(FacingAngleDegrees);
+		var facingCos = Mathf.Cos(FacingAngleDegrees);
+		res.X += facingSin * angularVelocity;
+		res.Y += facingCos * angularVelocity;
+
+		return res;
+	}
 }
 
 public partial class Player : CharacterBody2D // LOADS
 {
 	public void SetCollisions()
 	{
-		SetCollisions(this, ID - 1);
-		SetCollisions(Sword, ID - 1);
-		SetCollisions(Shield, ID - 1);
-		SetCollisions(Sword.GetNode<Area2D>("ParryTrigger"), ID - 1);
-		SetCollisions(Shield.GetNode<Area2D>("ParryTrigger"), ID - 1);
+		SetCollisions(this, ID);
+		Sword.SetCollisions(ID);
+		Shield.SetCollisions(ID);
 	}
 
 	public static void SetCollisions(CollisionObject2D obj, int ID)
 	{
 		if (ID > 0)
 		{
-			uint CollisionValue = (uint)Math.Pow(2, ID);
-			obj.CollisionLayer = CollisionValue;
-			var Mask = obj.CollisionMask;
-			obj.CollisionMask = Mask - CollisionValue;
+			uint CollisionValue = (uint)Math.Pow(2, ID + 3);
+			//obj.CollisionLayer = CollisionValue;
+			//obj.CollisionMask -= CollisionValue;
+			//obj.CollisionMask -= (uint)Math.Pow(2, ID + 11);
 		}
 	}
 
@@ -325,12 +417,22 @@ public partial class Player : CharacterBody2D // LOADS
 		ParryTimer.OneShot = true;
 
 		ParryWindowTimer = new Timer();
-		ParryWindowTimer.Timeout += Shield.ParryOver;
+		ParryWindowTimer.Timeout += ParryOver;
 		ParryWindowTimer.OneShot = true;
+
+		IFrameTimer = new Timer();
+		IFrameTimer.Timeout += () => {Immune = false; StopFlashing();};
+		IFrameTimer.OneShot = true;
+
+		FlashingTimer = new Timer();
+		FlashingTimer.Timeout += () => this.Visible = !this.Visible;
+		FlashingTimer.OneShot = false;
 
 		AddChild(StunTimer);
 		AddChild(LungeTimer);
 		AddChild(ParryTimer);
 		AddChild(ParryWindowTimer);
+		AddChild(IFrameTimer);
+		AddChild(FlashingTimer);
 	}
 }

@@ -1,8 +1,8 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-
-public partial class Sword : StaticBody2D //Actually SwordV3
+/*
+public partial class SwordV3 : Area2D //Actually SwordV2
 {
 	[Export] public float PoleRadius = 64f;   // approximate physical radius
 	[Export] public float SpinCoupling = 0.7f;
@@ -13,14 +13,12 @@ public partial class Sword : StaticBody2D //Actually SwordV3
 	Vector2 LastPos;
 	float LastRotationAngle;
 
-	//Vector2 Velocity;
-	public float AngularVelocity = 0; // Positive = clockwise
+	Vector2 Velocity;
+	float AngularVelocity = 0; // Positive = clockwise
 
 	private readonly HashSet<RigidBody2D> _CollidedBodies = new();
 
-	HashSet<Sword> AreaImmunity = new();
-
-	/*private void _on_body_entered(Node2D Body)
+	private void _on_body_entered(Node2D Body)
 	{
 		GD.Print("Sword: BODY ENTERED: " + Body.Name);
 		if (Body is Sword sw) // remove later
@@ -38,7 +36,7 @@ public partial class Sword : StaticBody2D //Actually SwordV3
 		{
 			TempAudioGlobal.Play("hit_critPLACEHOLDER.mp3", this);
 		}
-	}*/
+	}
 
 	private void _on_parry_trigger_body_entered(Node2D Body)
 	{
@@ -54,12 +52,14 @@ public partial class Sword : StaticBody2D //Actually SwordV3
 		//GD.Print("Sword Parry Triger: AREA ENTERED: " + area.Name);
 		if (area is ParryArea)
 		{
-			TempAudio.PlayRandomPitch("Parried.mp3", 0.1f, this);
+			TempAudioGlobal.Play("hit_critPLACEHOLDER.mp3", this);
 		}
 	}
 
 	public override void _Ready()
 	{
+		BodyEntered += b => { if (b is RigidBody2D rb) _CollidedBodies.Add(rb); };
+		BodyExited  += b => { if (b is RigidBody2D rb) _CollidedBodies.Remove(rb); };
 		offset = Position;
 		LastPos = GlobalPosition;
 		LastRotationAngle = GlobalRotation;
@@ -88,13 +88,14 @@ public partial class Sword : StaticBody2D //Actually SwordV3
 				rb.ApplyImpulse(sepImpulse);
 			}
 		}
-		//Velocity = (GlobalPosition - LastPos) / (float)delta;
+		Velocity = (GlobalPosition - LastPos) / (float)delta;
 		AngularVelocity = (GlobalRotation - LastRotationAngle) / (float)delta;
 		LastPos = GlobalPosition;
 		LastRotationAngle = GlobalRotation;
 		//GD.Print("Velocity: " + Velocity);
 		//GD.Print("Angular Velocity: " + AngularVelocity);
-		/*for (int i = 0; i < GetSlideCollisionCount(); i++)
+		/*
+		for (int i = 0; i < GetSlideCollisionCount(); i++)
 		{
 			var collision2 = GetSlideCollision(i);
 			if (collision2.GetCollider() is RigidBody2D rb)
@@ -109,15 +110,15 @@ public partial class Sword : StaticBody2D //Actually SwordV3
 		var motion = target - this.GlobalPosition;
 		var collision = MoveAndCollide(motion);
 		if (collision != null)
-			HandleCollision(collision);
-		*/
+			HandleCollision(collision);*//*
+
 	}
 
 	void HandleCollision(KinematicCollision2D collision)
 	{
 		//GD.Print(collision);
 		var normal = collision.GetNormal();
-		//GD.Print(normal);
+		GD.Print(normal);
 		var depth = collision.GetRemainder().Length();
 		var pushback = normal * depth * 50;  //tweak multiplier
 		playerRef.Push(pushback);
@@ -125,30 +126,20 @@ public partial class Sword : StaticBody2D //Actually SwordV3
 
 	void SwordOnSword(Sword sw)
 	{
-		if (!AreaImmunity.Contains(sw))
-		{
-			//Vector2 pushdir = Vector2.FromAngle(this.GlobalRotation + Rotation);
-			//GD.Print(pushdir);
-			sw.playerRef.Push(playerRef.Velocity * 0.8f);
-			sw.playerRef.Stun(0.15f);
-			sw.playerRef.PushRotation(-this.AngularVelocity/Mathf.Pi);
-			this.playerRef.Stun(0.15f);
-			GD.Print("SWORD ON SWORD CONTACT");//*/
-			TempAudio.PlayRandomPitch("HitSword.mp3", 0.1f, this);
-			AreaImmunity.Add(sw);
-			Timer temp = TempTimer.Get(0.25f);
-			temp.Timeout += () => AreaImmunity.Remove(sw);
-			AddChild(temp);
-			temp.Start();
-		}
+		Vector2 pushdir = Vector2.FromAngle(this.GlobalRotation + Rotation);
+		GD.Print(pushdir);
+		sw.playerRef.Push(pushdir * 300);
+		sw.playerRef.Stun(0.1f);
+		sw.playerRef.PushRotation(this.playerRef.LastRotationAngle);
+		this.playerRef.Stun(0.1f);
+		//GD.Print("SWORD ON SWORD CONTACT");
 	}
 
 	void SwordOnShield(Shield sd)
 	{
 		Vector2 pushdir = Vector2.FromAngle(this.GlobalRotation + Rotation);
 		sd.playerRef.Push(pushdir * 100);
-		GD.Print("SWORD ON SHIELD CONTACT");//*/
-		TempAudio.PlayRandomPitch("HitSword.mp3", 0.1f, this);
+		//GD.Print("SWORD ON SHIELD CONTACT");
 	}
 
 	void SwordOnObject(RigidBody2D rb)
@@ -158,30 +149,15 @@ public partial class Sword : StaticBody2D //Actually SwordV3
 		
 	}
 
-	static Vector2 GetAngularPush(Vector2 velocity, float angularVelocity, float FacingAngle)
+	static Vector2 GetAngularPush(Vector2 velocity, float angularVelocity, float FacingAngleDegrees)
 	{
 		Vector2 res = new Vector2(velocity.X, velocity.Y);
-		var facingSin = Mathf.Sin(FacingAngle);
-		var facingCos = Mathf.Cos(FacingAngle);
+		var facingSin = Mathf.Sin(FacingAngleDegrees);
+		var facingCos = Mathf.Cos(FacingAngleDegrees);
 		res.X += facingSin * angularVelocity;
 		res.Y += facingCos * angularVelocity;
 
 		return res;
 	}
-
-	public void SetCollisions(int ID)
-	{
-		if (ID > 0)
-		{
-			uint CollisionValue = (uint)Math.Pow(2, ID + 3);  //Player/Shield line
-			uint CollisionValue2 = (uint)Math.Pow(2, ID + 7); //Sword Line
-			uint CollisionValue3 = (uint)Math.Pow(2, ID + 11);//Parry Line
-			this.CollisionLayer = CollisionValue2;
-			this.CollisionMask -= CollisionValue3;
-
-			var parry = this.GetNode<Area2D>("ParryTrigger");
-			parry.CollisionLayer = CollisionValue3;
-			parry.CollisionMask -= CollisionValue + CollisionValue2;
-		}
-	}
 }
+*/

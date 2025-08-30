@@ -31,6 +31,8 @@ public partial class Game : Node2D
 			p.TeamID = i+1;
 			p.GlobalPosition = Spawnpoints[i].GlobalPosition;
 			p.DebugDisplay = true;
+			if (i == 1)
+				p.InvertedLook = true;
 			if (i == 3)
 				p.DisableMovement = true;
 			//p.NoInteractables = true;
